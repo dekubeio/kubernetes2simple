@@ -53,7 +53,7 @@ The script generates three files: `compose.yml`, `Caddyfile`, and `dekube.yaml`.
 
 kubernetes2simple is the turnkey face of [dekube](https://dekube.io) — an heretical, overengineered conversion engine that parses Kubernetes manifests, resolves ConfigMaps and Secrets, rewrites Service DNS, generates TLS certificates, produces reverse proxy configurations, and reassembles the whole thing as `docker compose` services. It has an extension system, a package manager, a fake API server for the things that can't be faked, a regression test suite with an O(n³) torture generator, and documentation written in the tone of forbidden texts.
 
-It was not designed. It was revealed, one mass-produced horror at a time, across increasingly unhinged vibe-coding sessions. The Lovecraftian quotes in the docs started as a joke. They stopped being funny around the third project.
+It was not designed. It was revealed, one mass-produced horror at a time, across increasingly unhinged AI-assisted sessions. The Lovecraftian quotes in the docs started as a joke. They stopped being funny around the third project.
 
 kubernetes2simple bundles the engine, all official extensions, and a bootstrap script into a single command so you never have to see any of this. You're welcome.
 
