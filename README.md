@@ -5,13 +5,13 @@
 You have a Kubernetes project. You want to run it locally with `docker compose`. You don't want to think about it.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dekubeio/kubernetes2simple/main/kubernetes2simple.sh -o k2s.sh
-chmod +x k2s.sh
-./k2s.sh
+curl -fsSL k2s.dekube.io/get | bash
 docker compose up -d
 ```
 
 The script looks at your project, figures out what it is, installs whatever tools are missing, and produces a working `docker compose` setup. Everything it downloads lives in `.kubernetes2simple/` — your system stays clean.
+
+**Guides:** [Kubernetes to Docker Compose](https://k2s.dekube.io/guides/kubernetes-to-docker-compose/) · [Helm chart to Docker Compose](https://k2s.dekube.io/guides/helm-chart-to-docker-compose/) · [Local development with Docker Compose](https://k2s.dekube.io/guides/local-kubernetes-development-docker-compose/)
 
 ## What you need
 
@@ -57,6 +57,6 @@ It was not designed. It was revealed, one mass-produced horror at a time, across
 
 kubernetes2simple bundles the engine, all official extensions, and a bootstrap script into a single command so you never have to see any of this. You're welcome.
 
-[Full documentation](https://docs.dekube.io) · [Source engine](https://github.com/dekubeio/dekube-engine) · [Extension registry](https://github.com/dekubeio/dekube-manager)
+[Full documentation](https://docs.dekube.io) · [kubernetes2simple site](https://k2s.dekube.io) · [Source engine](https://github.com/dekubeio/dekube-engine) · [Extension registry](https://github.com/dekubeio/dekube-manager)
 
 </details>
