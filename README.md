@@ -28,6 +28,8 @@ That's all. The rest is handled.
 
 `--env` selects a helmfile environment if your project uses one. `--clean` wipes the local cache and starts fresh.
 
+If you don't pass `--env`, the script prompts for one interactively — under `curl | bash` that prompt reads from `/dev/tty`, so it still works even though stdin is the piped script. Without a terminal at all (e.g. a CI job), it warns and continues without an environment instead of hanging.
+
 ## Good to know
 
 The script generates three files: `compose.yml`, `Caddyfile`, and `dekube.yaml`.
