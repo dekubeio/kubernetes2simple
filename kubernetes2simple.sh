@@ -262,7 +262,15 @@ render_helmfile() {
         warn "No --env specified. Helmfile projects often require an environment."
         warn "If this fails, re-run with: ./k2s.sh --env <environment>"
         printf "${_yellow}[k2s]${_nc} Press Enter to continue without an environment, or Ctrl+C to abort... "
-        read -r
+        if [[ -t 0 ]]; then
+            read -r
+        elif { : < /dev/tty; } 2>/dev/null; then
+            # curl | bash: stdin is the script pipe, ask the terminal instead
+            read -r < /dev/tty
+        else
+            echo ""
+            warn "No terminal to prompt on — continuing without an environment."
+        fi
     fi
 
     info "Rendering helmfile..."
