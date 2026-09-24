@@ -93,6 +93,19 @@ github_latest_tag() {
 }
 
 # ---------------------------------------------------------------------------
+# Checksums
+# ---------------------------------------------------------------------------
+sha256_of() {
+    if command -v sha256sum &>/dev/null; then
+        sha256sum "$1" | awk '{print $1}'
+    elif command -v shasum &>/dev/null; then
+        shasum -a 256 "$1" | awk '{print $1}'
+    else
+        fail "Need sha256sum or shasum to verify downloads."
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # curl
 # ---------------------------------------------------------------------------
 ensure_curl() {
@@ -195,14 +208,27 @@ ensure_helm() {
     fi
 
     info "Installing helm..."
-    local tag
+    local tag tarball url tmp expected actual
     tag=$(github_latest_tag helm/helm)
-    local url="https://get.helm.sh/helm-${tag}-${OS}-${ARCH}.tar.gz"
+    tarball="helm-${tag}-${OS}-${ARCH}.tar.gz"
+    url="https://get.helm.sh/${tarball}"
     mkdir -p "$K2S_BIN"
-    curl -fsSL "$url" | tar xz -C "$K2S_BIN" --strip-components=1 "${OS}-${ARCH}/helm"
+    tmp=$(mktemp "$K2S_DIR/${tarball}.XXXXXX")
+    curl -fsSL "$url" -o "$tmp" || { rm -f "$tmp"; fail "Failed to download helm"; }
+
+    expected=$(curl -fsSL "${url}.sha256sum" | awk '{print $1}')
+    [[ -n "$expected" ]] || { rm -f "$tmp"; fail "Failed to fetch helm checksum ($url.sha256sum)"; }
+    actual=$(sha256_of "$tmp")
+    if [[ "$actual" != "$expected" ]]; then
+        rm -f "$tmp"
+        fail "helm checksum mismatch (expected $expected, got $actual) — aborting"
+    fi
+
+    tar -xzf "$tmp" -C "$K2S_BIN" --strip-components=1 "${OS}-${ARCH}/helm"
+    rm -f "$tmp"
     chmod +x "$K2S_BIN/helm"
     HELM="$K2S_BIN/helm"
-    info "Installed helm $tag"
+    info "Installed helm $tag (checksum verified)"
 }
 
 # ---------------------------------------------------------------------------
@@ -221,22 +247,37 @@ ensure_helmfile() {
     fi
 
     info "Installing helmfile..."
-    local tag
+    local tag ver tarball url checksums_url tmp expected actual
     tag=$(github_latest_tag helmfile/helmfile)
-    local url="https://github.com/helmfile/helmfile/releases/download/${tag}/helmfile_${tag#v}_${OS}_${ARCH}.tar.gz"
+    ver="${tag#v}"
+    tarball="helmfile_${ver}_${OS}_${ARCH}.tar.gz"
+    url="https://github.com/helmfile/helmfile/releases/download/${tag}/${tarball}"
+    checksums_url="https://github.com/helmfile/helmfile/releases/download/${tag}/helmfile_${ver}_checksums.txt"
     mkdir -p "$K2S_BIN"
-    curl -fsSL "$url" | tar xz -C "$K2S_BIN" helmfile
+    tmp=$(mktemp "$K2S_DIR/${tarball}.XXXXXX")
+    curl -fsSL "$url" -o "$tmp" || { rm -f "$tmp"; fail "Failed to download helmfile"; }
+
+    expected=$(curl -fsSL "$checksums_url" | awk -v f="$tarball" '$2 == f {print $1}')
+    [[ -n "$expected" ]] || { rm -f "$tmp"; fail "Failed to fetch helmfile checksum for $tarball"; }
+    actual=$(sha256_of "$tmp")
+    if [[ "$actual" != "$expected" ]]; then
+        rm -f "$tmp"
+        fail "helmfile checksum mismatch (expected $expected, got $actual) — aborting"
+    fi
+
+    tar -xzf "$tmp" -C "$K2S_BIN" helmfile
+    rm -f "$tmp"
     chmod +x "$K2S_BIN/helmfile"
     HELMFILE="$K2S_BIN/helmfile"
-    info "Installed helmfile $tag"
+    info "Installed helmfile $tag (checksum verified)"
 }
 
 # ---------------------------------------------------------------------------
 # Source detection
 # ---------------------------------------------------------------------------
 detect_source() {
-    # Helmfile project
-    if [[ -f helmfile.yaml || -f helmfile.yml ]]; then
+    # Helmfile project (helmfile auto-detects the .gotmpl extension itself)
+    if [[ -f helmfile.yaml || -f helmfile.yml || -f helmfile.yaml.gotmpl || -f helmfile.yml.gotmpl ]]; then
         echo "helmfile"
         return
     fi
@@ -247,12 +288,21 @@ detect_source() {
         return
     fi
 
-    # Flat K8s manifests (any YAML with a top-level 'kind:' field)
+    # Flat K8s manifests (any YAML with a top-level 'kind:' field).
+    # dekube-engine only globs *.yaml (recursive rglob) — *.yml is never
+    # read, so a .yml-only directory would otherwise "convert" to nothing.
     local f
-    for f in *.yaml *.yml; do
+    for f in *.yaml; do
         [[ -f "$f" ]] || continue
         if grep -q '^kind:' "$f" 2>/dev/null; then
             echo "manifests"
+            return
+        fi
+    done
+    for f in *.yml; do
+        [[ -f "$f" ]] || continue
+        if grep -q '^kind:' "$f" 2>/dev/null; then
+            echo "manifests-yml-only"
             return
         fi
     done
@@ -265,7 +315,11 @@ detect_source() {
 # ---------------------------------------------------------------------------
 render_helmfile() {
     local helmfile_path="helmfile.yaml"
-    [[ -f "$helmfile_path" ]] || helmfile_path="helmfile.yml"
+    if [[ ! -f "$helmfile_path" ]]; then
+        for helmfile_path in helmfile.yml helmfile.yaml.gotmpl helmfile.yml.gotmpl; do
+            [[ -f "$helmfile_path" ]] && break
+        done
+    fi
 
     rm -rf "$K2S_RENDER"
     mkdir -p "$K2S_RENDER"
