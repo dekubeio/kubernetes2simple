@@ -375,7 +375,7 @@ render_helmfile() {
     elif [[ ! -f "$K2S_DIR/.ignoreNoHelmfileEnvironment" ]]; then
         warn "No --env specified. Helmfile projects often require an environment."
         warn "If this fails, re-run with: ./k2s.sh --env <environment>"
-        printf "${_yellow}[k2s]${_nc} Press Enter to continue without an environment, or Ctrl+C to abort... "
+        printf "%s[k2s]%s Press Enter to continue without an environment, or Ctrl+C to abort... " "$_yellow" "$_nc"
         if [[ -t 0 ]]; then
             read -r
         elif { : < /dev/tty; } 2>/dev/null; then
