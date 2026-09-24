@@ -38,7 +38,7 @@ The script generates three files: `compose.yml`, `Caddyfile`, and `dekube.yaml`.
 
 **TLS is best-effort.** If your project uses cert-manager certificates, the script generates self-signed certs locally so things can start. This is fine for development. It is not a replacement for your actual certificate setup — don't ship this to production expecting real TLS.
 
-**Some things won't convert.** CronJobs, resource limits, probes, HPA — anything that doesn't have a compose equivalent is skipped with a warning. This is expected. The goal is a working local environment, not a 1:1 replica of your cluster.
+**Some things won't convert.** CronJobs, HPA, resource *requests* — anything that doesn't have a compose equivalent is skipped with a warning. (Resource *limits* and probes do convert, to `deploy.resources.limits` and `healthcheck:` respectively.) This is expected. The goal is a working local environment, not a 1:1 replica of your cluster.
 
 ## It didn't work
 
@@ -57,7 +57,7 @@ kubernetes2simple is the turnkey face of [dekube](https://dekube.io) — an here
 
 It was not designed. It was revealed, one mass-produced horror at a time, across increasingly unhinged AI-assisted sessions. The Lovecraftian quotes in the docs started as a joke. They stopped being funny around the third project.
 
-kubernetes2simple bundles the engine, all official extensions, and a bootstrap script into a single command so you never have to see any of this. You're welcome.
+kubernetes2simple bundles the engine, 7 of the 8 official extensions (all but `flatten-internal-urls`, which conflicts with the bundled cert-manager extension), and a bootstrap script into a single command so you never have to see any of this. You're welcome.
 
 [Full documentation](https://docs.dekube.io) · [kubernetes2simple site](https://k2s.dekube.io) · [Source engine](https://github.com/dekubeio/dekube-engine) · [Extension registry](https://github.com/dekubeio/dekube-manager)
 
