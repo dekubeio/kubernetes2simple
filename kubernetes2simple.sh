@@ -257,9 +257,10 @@ ensure_helm() {
     url="https://get.helm.sh/${tarball}"
     mkdir -p "$K2S_BIN"
     tmp=$(mktemp "$K2S_DIR/${tarball}.XXXXXX")
+    register_tmp "$tmp"
     curl -fsSL "$url" -o "$tmp" || { rm -f "$tmp"; fail "Failed to download helm"; }
 
-    expected=$(curl -fsSL "${url}.sha256sum" | awk '{print $1}')
+    expected=$(curl -fsSL "${url}.sha256sum" | awk '{print $1}') || expected=""
     [[ -n "$expected" ]] || { rm -f "$tmp"; fail "Failed to fetch helm checksum ($url.sha256sum)"; }
     actual=$(sha256_of "$tmp")
     if [[ "$actual" != "$expected" ]]; then
@@ -298,9 +299,10 @@ ensure_helmfile() {
     checksums_url="https://github.com/helmfile/helmfile/releases/download/${tag}/helmfile_${ver}_checksums.txt"
     mkdir -p "$K2S_BIN"
     tmp=$(mktemp "$K2S_DIR/${tarball}.XXXXXX")
+    register_tmp "$tmp"
     curl -fsSL "$url" -o "$tmp" || { rm -f "$tmp"; fail "Failed to download helmfile"; }
 
-    expected=$(curl -fsSL "$checksums_url" | awk -v f="$tarball" '$2 == f {print $1}')
+    expected=$(curl -fsSL "$checksums_url" | awk -v f="$tarball" '$2 == f {print $1}') || expected=""
     [[ -n "$expected" ]] || { rm -f "$tmp"; fail "Failed to fetch helmfile checksum for $tarball"; }
     actual=$(sha256_of "$tmp")
     if [[ "$actual" != "$expected" ]]; then
