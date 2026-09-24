@@ -34,6 +34,22 @@ warn() { printf "${_yellow}[k2s]${_nc} %s\n" "$1"; }
 fail() { printf "${_red}[k2s]${_nc} %s\n" "$1" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
+# Temp file cleanup — register every mktemp'd path, sweep them on any exit
+# (Ctrl-C, set -e death, normal return). A single top-level EXIT trap avoids
+# the trap-clobbering issue of setting one per function.
+# ---------------------------------------------------------------------------
+K2S_TMP_FILES=()
+register_tmp() { K2S_TMP_FILES+=("$1"); }
+cleanup_tmp_files() {
+    local f
+    # bash 3.2 treats an empty array as unset under `set -u`.
+    for f in ${K2S_TMP_FILES[@]+"${K2S_TMP_FILES[@]}"}; do
+        rm -f "$f"
+    done
+}
+trap cleanup_tmp_files EXIT
+
+# ---------------------------------------------------------------------------
 # Args
 # ---------------------------------------------------------------------------
 OUTPUT_DIR="."
@@ -166,13 +182,35 @@ ensure_python_deps() {
 # ---------------------------------------------------------------------------
 # kubernetes2simple.py
 # ---------------------------------------------------------------------------
-# Cache is keyed on the release tag (not a TTL): cheap to check (same API
-# call already used for helm/helmfile below), and it refreshes exactly when
-# a new release ships instead of guessing a staleness window.
+# Cache is keyed on the release tag, but the tag lookup itself only happens
+# once a day (timestamp file) — and a lookup failure (offline, rate-limited,
+# GitHub down) NEVER blocks a run that already has a cached script; it just
+# keeps using it, with a one-line notice. Only "no cache at all" is fatal.
+K2S_CHECK_TTL=86400  # seconds; re-check for a newer release at most this often
+
 ensure_k2s_script() {
-    local latest cached=""
-    latest=$(github_latest_tag "$K2S_REPO")
+    local now check_ts=0 latest="" cached=""
+    now=$(date +%s)
     [[ -f "$K2S_DIR/.k2s_version" ]] && cached=$(cat "$K2S_DIR/.k2s_version")
+    [[ -f "$K2S_DIR/.k2s_checked_at" ]] && check_ts=$(cat "$K2S_DIR/.k2s_checked_at")
+
+    if [[ -f "$K2S_SCRIPT" ]] && (( now - check_ts < K2S_CHECK_TTL )); then
+        info "kubernetes2simple.py (cached, $cached)"
+        return
+    fi
+
+    # Never let the version check itself be a hard dependency: on failure,
+    # fall through to "no newer version known" rather than dying under set -e.
+    latest=$(github_latest_tag "$K2S_REPO" 2>/dev/null) || latest=""
+    echo "$now" > "$K2S_DIR/.k2s_checked_at"
+
+    if [[ -z "$latest" ]]; then
+        if [[ -f "$K2S_SCRIPT" ]]; then
+            warn "Could not check for a newer kubernetes2simple.py (offline or GitHub unreachable) — using cached $cached"
+            return
+        fi
+        fail "No cached kubernetes2simple.py and could not reach GitHub to download one. Check your network and retry."
+    fi
 
     if [[ -f "$K2S_SCRIPT" && "$cached" == "$latest" ]]; then
         info "kubernetes2simple.py (cached, $latest)"
@@ -182,9 +220,14 @@ ensure_k2s_script() {
     info "Downloading kubernetes2simple.py ($latest)..."
     local tmp
     tmp=$(mktemp "$K2S_SCRIPT.XXXXXX")
+    register_tmp "$tmp"
     if ! curl -fsSL -o "$tmp" \
         "https://github.com/$K2S_REPO/releases/download/$latest/kubernetes2simple.py"; then
         rm -f "$tmp"
+        if [[ -f "$K2S_SCRIPT" ]]; then
+            warn "Failed to download kubernetes2simple.py $latest — using cached $cached"
+            return
+        fi
         fail "Failed to download kubernetes2simple.py"
     fi
     mv "$tmp" "$K2S_SCRIPT"
