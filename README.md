@@ -36,6 +36,8 @@ The script generates three files: `compose.yml`, `Caddyfile`, and `dekube.yaml`.
 
 **You can re-run it safely.** Your `compose.yml` and `Caddyfile` are regenerated every time — don't edit them by hand, your changes will be overwritten. If you need to customize something (exclude a service, override an image, pin a volume path), edit `dekube.yaml` instead. That file is yours — the script reads it but never overwrites it.
 
+**Downloads are cached.** The converter is cached in `.kubernetes2simple/` and checked for updates at most once a day; if GitHub can't be reached, the cached copy is used. helm and helmfile, when the script has to download them, are checksum-verified first. Details: [what the script fetches, and when](https://k2s.dekube.io/guides/#what-the-script-fetches-and-when).
+
 **TLS is best-effort.** If your project uses cert-manager certificates, the script generates self-signed certs locally so things can start. This is fine for development. It is not a replacement for your actual certificate setup — don't ship this to production expecting real TLS.
 
 **Some things won't convert.** CronJobs, HPA, resource *requests* — anything that doesn't have a compose equivalent is skipped with a warning. (Resource *limits* and probes do convert, to `deploy.resources.limits` and `healthcheck:` respectively.) This is expected. The goal is a working local environment, not a 1:1 replica of your cluster.
