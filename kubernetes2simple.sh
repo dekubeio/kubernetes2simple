@@ -343,7 +343,9 @@ render_helmfile() {
     fi
 
     info "Rendering helmfile..."
-    "$HELMFILE" -f "$helmfile_path" "${env_flag[@]}" template --output-dir "$K2S_RENDER" >/dev/null 2>&1
+    # ${arr[@]+"${arr[@]}"} instead of "${arr[@]}": bash 3.2 (macOS's system
+    # bash) treats an empty array as unset under `set -u` and aborts.
+    "$HELMFILE" -f "$helmfile_path" ${env_flag[@]+"${env_flag[@]}"} template --output-dir "$K2S_RENDER" >/dev/null 2>&1
 
     # Helmfile succeeded without --env — don't warn next time
     if [[ -z "$HELMFILE_ENV" ]]; then
@@ -368,7 +370,7 @@ render_chart() {
     done
 
     info "Rendering chart..."
-    "$HELM" template release . "${values_flags[@]}" --output-dir "$K2S_RENDER" >/dev/null 2>&1
+    "$HELM" template release . ${values_flags[@]+"${values_flags[@]}"} --output-dir "$K2S_RENDER" >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------
@@ -393,6 +395,12 @@ main() {
         helmfile)  info "Detected: helmfile project" ;;
         chart)     info "Detected: Helm chart" ;;
         manifests) info "Detected: Kubernetes manifests" ;;
+        manifests-yml-only)
+            info "Detected: Kubernetes manifests (.yml)"
+            warn "dekube-engine only reads *.yaml files, not *.yml — conversion will likely produce nothing."
+            warn "Rename your manifests to .yaml and re-run if the output comes up empty."
+            mode="manifests"
+            ;;
         unknown)
             fail "No Kubernetes source found in current directory.
 
