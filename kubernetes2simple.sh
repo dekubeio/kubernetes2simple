@@ -153,15 +153,30 @@ ensure_python_deps() {
 # ---------------------------------------------------------------------------
 # kubernetes2simple.py
 # ---------------------------------------------------------------------------
+# Cache is keyed on the release tag (not a TTL): cheap to check (same API
+# call already used for helm/helmfile below), and it refreshes exactly when
+# a new release ships instead of guessing a staleness window.
 ensure_k2s_script() {
-    if [[ -f "$K2S_SCRIPT" ]]; then
-        info "kubernetes2simple.py (cached)"
+    local latest cached=""
+    latest=$(github_latest_tag "$K2S_REPO")
+    [[ -f "$K2S_DIR/.k2s_version" ]] && cached=$(cat "$K2S_DIR/.k2s_version")
+
+    if [[ -f "$K2S_SCRIPT" && "$cached" == "$latest" ]]; then
+        info "kubernetes2simple.py (cached, $latest)"
         return
     fi
-    info "Downloading kubernetes2simple.py..."
-    curl -fsSL -o "$K2S_SCRIPT" \
-        "https://github.com/$K2S_REPO/releases/latest/download/kubernetes2simple.py"
-    info "Downloaded kubernetes2simple.py"
+
+    info "Downloading kubernetes2simple.py ($latest)..."
+    local tmp
+    tmp=$(mktemp "$K2S_SCRIPT.XXXXXX")
+    if ! curl -fsSL -o "$tmp" \
+        "https://github.com/$K2S_REPO/releases/download/$latest/kubernetes2simple.py"; then
+        rm -f "$tmp"
+        fail "Failed to download kubernetes2simple.py"
+    fi
+    mv "$tmp" "$K2S_SCRIPT"
+    echo "$latest" > "$K2S_DIR/.k2s_version"
+    info "Downloaded kubernetes2simple.py ($latest)"
 }
 
 # ---------------------------------------------------------------------------
