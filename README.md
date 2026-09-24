@@ -57,7 +57,7 @@ kubernetes2simple is the turnkey face of [dekube](https://dekube.io) — an here
 
 It was not designed. It was revealed, one mass-produced horror at a time, across increasingly unhinged AI-assisted sessions. The Lovecraftian quotes in the docs started as a joke. They stopped being funny around the third project.
 
-kubernetes2simple bundles the engine, 7 of the 8 official extensions (all but `flatten-internal-urls`, which conflicts with the bundled cert-manager extension), and a bootstrap script into a single command so you never have to see any of this. You're welcome.
+kubernetes2simple bundles the engine, a bootstrap script, and most (not all) of the optional extensions in [dekube-manager's registry](https://github.com/dekubeio/dekube-manager/blob/main/extensions.json): `keycloak`, `cert-manager`, `trust-manager`, `servicemonitor`, `nginx`, `traefik`, `bitnami` (see [`distribution.json`](distribution.json)), plus `emptydir` (inherited from the `helmfile2compose` base it's built on). Left out: `cnpg`, `flatten-internal-urls` (conflicts with the bundled `cert-manager`), `nginx-provider`, and `fake-apiserver` — so you never have to see any of this, except for those four.
 
 [Full documentation](https://docs.dekube.io) · [kubernetes2simple site](https://k2s.dekube.io) · [Source engine](https://github.com/dekubeio/dekube-engine) · [Extension registry](https://github.com/dekubeio/dekube-manager)
 
